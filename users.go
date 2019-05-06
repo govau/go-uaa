@@ -152,3 +152,40 @@ func (a *API) setActive(active bool, userID string, userMetaVersion int) error {
 	}
 	return a.doJSONWithHeaders(http.MethodPatch, &u, extraHeaders, bytes.NewBuffer([]byte(j)), nil, true)
 }
+
+// SetPassword changes the password of the given user ID.
+// oldPassword is optional when resetting another users password as an admin
+// with uaa.admin scope.
+// http://docs.cloudfoundry.org/api/uaa/version/4.14.0/#change-user-password.
+func (a *API) SetPassword(password string, oldPassword string, userID string) error {
+	if userID == "" {
+		return errors.New("userID cannot be blank")
+	}
+	u := urlWithPath(*a.TargetURL, fmt.Sprintf("%s/%s/password", UsersEndpoint, userID))
+
+	// todo DRY this?
+	if oldPassword == "" {
+		j, err := json.Marshal(struct {
+			Password string `json:"password"`
+		}{
+			Password: password,
+		})
+		if err != nil {
+			return err
+		}
+		return a.doJSON(http.MethodPut, &u, bytes.NewBuffer([]byte(j)), nil, true)
+
+	} else {
+		j, err := json.Marshal(struct {
+			OldPassword string `json:"oldPassword"`
+			Password    string `json:"password"`
+		}{
+			OldPassword: oldPassword,
+			Password:    password,
+		})
+		if err != nil {
+			return err
+		}
+		return a.doJSON(http.MethodPut, &u, bytes.NewBuffer([]byte(j)), nil, true)
+	}
+}
